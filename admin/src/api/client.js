@@ -1,5 +1,5 @@
 import axios from 'axios';
-import Session from 'supertokens-web-js/recipe/session';
+import Session from 'supertokens-auth-react/recipe/session';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',

@@ -18,7 +18,7 @@ services:
       retries: 5
 
   supertokens:
-    image: registry.supertokens.io/supertokens/supertokens-postgresql:9.2
+    image: supertokens/supertokens-postgresql:11.4
     container_name: artisthive-supertokens
     restart: unless-stopped
     depends_on:

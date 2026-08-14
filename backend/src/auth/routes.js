@@ -2,12 +2,16 @@ import { prisma } from '../config/prisma.js';
 import { asyncHandler } from '../utils/http.js';
 
 /**
- * POST /api/auth/webhook/session
+ * POST /api/auth/session
  * Called by the frontend after successful SuperTokens login.
- * Ensures a local User row exists for the SuperTokens user, then returns it.
+ * Derives identity from the verified SuperTokens session, ensures a local
+ * User row exists for it, then returns the user.
  */
 export const sessionRouter = asyncHandler(async (req, res) => {
-  const { email, name } = req.body;
+  const payload = req.session.getAccessTokenPayload();
+  const stUserId = req.session.getUserId();
+
+  const email = payload?.email || req.body?.email;
   if (!email) return res.status(400).json({ error: 'email is required' });
 
   let user = await prisma.user.findUnique({ where: { email } });
@@ -15,10 +19,10 @@ export const sessionRouter = asyncHandler(async (req, res) => {
     user = await prisma.user.create({
       data: {
         email,
-        name: name || email.split('@')[0] || 'Artist',
+        name: payload?.name || req.body?.name || email.split('@')[0] || 'Artist',
       },
     });
   }
-  await prisma.user.update({ where: { id: user.id }, data: { supertokensId: req.stUserId || undefined } });
+  await prisma.user.update({ where: { id: user.id }, data: { supertokensId: stUserId } });
   res.json({ user });
 });

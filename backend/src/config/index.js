@@ -27,5 +27,8 @@ export const config = {
     publicBaseUrl: process.env.PUBLIC_MEDIA_BASE_URL || 'http://localhost:4000/media',
   },
 
-  corsOrigins: [process.env.SUPERTOKENS_WEBSITE_DOMAIN || 'http://localhost:5173'],
+  corsOrigins: [
+    process.env.SUPERTOKENS_WEBSITE_DOMAIN || 'http://localhost:5173',
+    process.env.SUPERTOKENS_ADMIN_DOMAIN || 'http://localhost:5174',
+  ],
 };

@@ -28,6 +28,10 @@ Artisthive/
 
 ## Local development
 
+See **[`docs/LOCAL_TESTING.md`](docs/LOCAL_TESTING.md)** for step-by-step instructions to run and test the platform on your laptop.
+
+Quick start:
+
 1. Copy `.env.example` to `.env`
 2. Start infra: `docker compose up -d postgres supertokens` (or use a local PostgreSQL)
 3. Backend: `cd backend && npm install && npx prisma migrate dev && npm run dev`
