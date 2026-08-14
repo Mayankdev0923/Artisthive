@@ -1,0 +1,33 @@
+{
+  "name": "artisthive-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Artisthive API server",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "lint": "eslint src"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.2.0",
+    "socket.io": "^4.8.3",
+    "supertokens-node": "^24.0.3"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.3"
+  }
+}

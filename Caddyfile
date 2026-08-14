@@ -1,0 +1,12 @@
+# Artisthive production reverse proxy (Caddy). Replace domains before deploying.
+artisthive.yourdomain.com {
+    reverse_proxy web:80
+}
+
+admin.artisthive.yourdomain.com {
+    reverse_proxy admin:80
+}
+
+api.artisthive.yourdomain.com {
+    reverse_proxy backend:4000
+}

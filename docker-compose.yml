@@ -1,0 +1,94 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: artisthive-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: artisthive
+      POSTGRES_PASSWORD: artisthive
+      POSTGRES_DB: artisthive
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artisthive"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:9.2
+    container_name: artisthive-supertokens
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRESQL_CONNECTION_URI: postgresql://artisthive:artisthive@postgres:5432/supertokens
+      # API_KEYS: <add a long random secret here>
+    ports:
+      - "3567:3567"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: artisthive-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      supertokens:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      SUPERTOKENS_CONNECTION_URI: http://supertokens:3567
+      DATABASE_URL: postgresql://artisthive:artisthive@postgres:5432/artisthive?schema=public
+    ports:
+      - "4000:4000"
+    volumes:
+      - media:/app/media
+
+  web:
+    build: ./web
+    container_name: artisthive-web
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  admin:
+    build: ./admin
+    container_name: artisthive-admin
+    restart: unless-stopped
+    ports:
+      - "5174:80"
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: artisthive-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - admin
+      - backend
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+  media:

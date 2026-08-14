@@ -1,0 +1,442 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== Enums =====
+
+enum Role {
+  USER
+  ARTIST
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  MORE_INFO
+}
+
+enum ArtistCategory {
+  MUSICIAN
+  SINGER
+  BAND
+  DJ
+  PAINTER
+  PHOTOGRAPHER
+  DANCER
+  PERFORMER
+  SCULPTOR
+  CRAFTS
+  DIGITAL_ARTIST
+  FILM_MAKER
+  WRITER
+  POET
+  OTHER
+}
+
+enum PostType {
+  ARTWORK
+  MUSIC
+  PERFORMANCE
+  PHOTOGRAPHY
+  VIDEO
+  BEHIND_THE_SCENES
+  ANNOUNCEMENT
+  RELEASE
+  EVENT
+}
+
+enum ProductType {
+  PAINTING
+  PRINT
+  SCULPTURE
+  CRAFT
+  MERCH
+  DIGITAL_ARTWORK
+  COMMISSION
+  OTHER
+}
+
+enum ProductStatus {
+  ACTIVE
+  SOLD
+  ARCHIVED
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  IN_PROGRESS
+  COMPLETED
+  DISPUTED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  DEMO_CONFIRMED
+}
+
+enum EvidencePhase {
+  BEFORE_DELIVERY
+  AFTER_DELIVERY
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  WAITING_FOR_ARTIST
+  WAITING_FOR_BUYER
+  RESOLVED
+  CLOSED
+}
+
+enum ReportReason {
+  FAKE_ARTIST
+  FRAUD
+  SPAM
+  COPYRIGHT
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  SUSPICIOUS_TRANSACTION
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum AuditAction {
+  APPROVED_ARTIST
+  REJECTED_ARTIST
+  REQUESTED_MORE_INFO
+  MARKED_EVIDENCE_REVIEWED
+  MARKED_ORDER_COMPLETED
+  REFUNDED_ORDER
+  OPENED_DISPUTE
+  RESOLVED_DISPUTE
+  CLOSED_DISPUTE
+  RESOLVED_REPORT
+  DISMISSED_REPORT
+  UPDATED_ORDER_STATUS
+}
+
+// ===== Core =====
+
+model User {
+  id              String   @id @default(cuid())
+  supertokensId   String?  @unique
+  email           String   @unique
+  name            String
+  role            Role     @default(USER)
+  avatarUrl       String?
+  bio             String?
+  phone           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  artistProfile   ArtistProfile?
+  posts           Post[]
+  appreciations   Appreciation[]
+  following       Follow[]   @relation("Follower")
+  followers       Follow[]   @relation("Following")
+  sentMessages    Message[]
+  conversationsA  ConversationParticipant[]
+  bookingsAsBuyer Booking[]   @relation("Buyer")
+  ordersAsBuyer   Order[]     @relation("OrderBuyer")
+  evidence        Evidence[]
+  reports         Report[]
+  notifications   Notification[]
+  disputesAsOpened Dispute[]  @relation("DisputeOpener")
+
+  @@map("users")
+}
+
+// ===== Artist =====
+
+model ArtistProfile {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id])
+  category          ArtistCategory
+  displayName       String
+  bio               String?
+  socialProfileUrl  String?
+  portfolioUrl      String?
+  workSamples       String[]           @default([])
+  verificationStatus VerificationStatus @default(PENDING)
+  verificationCode  String?            @unique
+  adminNotes        String?
+  appliedAt         DateTime           @default(now())
+  verifiedAt        DateTime?
+  rejectedAt        DateTime?
+  updatedAt         DateTime           @updatedAt
+
+  products          Product[]
+  bookingsAsArtist  Booking[]          @relation("ArtistBookings")
+  ordersAsArtist    Order[]            @relation("OrderArtist")
+
+  @@map("artist_profiles")
+}
+
+// ===== Social =====
+
+model Post {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  type      PostType @default(ARTWORK)
+  content   String
+  mediaUrls String[] @default([])
+  applauseCount Int  @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appreciations Appreciation[]
+
+  @@index([authorId, createdAt])
+  @@map("posts")
+}
+
+model Appreciation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@map("appreciations")
+}
+
+model Follow {
+  id         String   @id @default(cuid())
+  followerId String
+  follower   User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following  User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+// ===== Chat =====
+
+model Conversation {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  participants  ConversationParticipant[]
+  messages      Message[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// ===== Commerce =====
+
+model Product {
+  id          String        @id @default(cuid())
+  artistId    String
+  artist      ArtistProfile @relation(fields: [artistId], references: [id])
+  title       String
+  description String?
+  type        ProductType   @default(OTHER)
+  price       Decimal       @db.Decimal(10, 2)
+  images      String[]      @default([])
+  status      ProductStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  orders      Order[]
+
+  @@index([artistId, status])
+  @@map("products")
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  artistId    String
+  artist      ArtistProfile @relation("ArtistBookings", fields: [artistId], references: [id])
+  buyerId     String
+  buyer       User          @relation("Buyer", fields: [buyerId], references: [id])
+  serviceType String
+  details     String?
+  scheduledAt DateTime?
+  price       Decimal?      @db.Decimal(10, 2)
+  status      BookingStatus @default(REQUESTED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([artistId, status])
+  @@index([buyerId, status])
+  @@map("bookings")
+}
+
+// ===== Protected Deal (simulated escrow) =====
+
+model Order {
+  id            String        @id @default(cuid())
+  buyerId       String
+  buyer         User          @relation("OrderBuyer", fields: [buyerId], references: [id])
+  artistId      String
+  artist        ArtistProfile @relation("OrderArtist", fields: [artistId], references: [id])
+  productId     String?
+  product       Product?      @relation(fields: [productId], references: [id])
+  title         String
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(PENDING)
+  status        OrderStatus   @default(PENDING_PAYMENT)
+  createdAt     DateTime      @default(now())
+  completedAt   DateTime?
+  updatedAt     DateTime      @updatedAt
+
+  evidence      Evidence[]
+  disputes      Dispute[]
+  timeline      OrderTimeline[]
+
+  @@index([artistId, status])
+  @@index([buyerId, status])
+  @@map("orders")
+}
+
+model OrderTimeline {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  event     String
+  actorId   String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+  @@map("order_timeline")
+}
+
+model Evidence {
+  id          String        @id @default(cuid())
+  orderId     String
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploaderId  String
+  uploader    User          @relation(fields: [uploaderId], references: [id])
+  phase       EvidencePhase
+  mediaUrls   String[]      @default([])
+  description String?
+  reviewed    Boolean       @default(false)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@index([orderId, phase])
+  @@map("evidence")
+}
+
+model Dispute {
+  id             String        @id @default(cuid())
+  orderId        String
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  openedById     String
+  openedBy       User          @relation("DisputeOpener", fields: [openedById], references: [id])
+  reason         String
+  status         DisputeStatus @default(OPEN)
+  decision       String?
+  internalNotes  String?
+  outcome        String?
+  createdAt      DateTime      @default(now())
+  resolvedAt     DateTime?
+  updatedAt      DateTime      @updatedAt
+
+  @@index([orderId])
+  @@map("disputes")
+}
+
+// ===== Moderation =====
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  reporter    User         @relation(fields: [reporterId], references: [id])
+  targetType  String
+  targetId    String
+  reason      ReportReason
+  details     String?
+  status      ReportStatus @default(OPEN)
+  adminNotes  String?
+  createdAt   DateTime     @default(now())
+  resolvedAt  DateTime?
+
+  @@index([targetType, targetId])
+  @@map("reports")
+}
+
+model AuditLog {
+  id         String       @id @default(cuid())
+  adminId    String
+  adminEmail String
+  action     AuditAction
+  entityType String?
+  entityId   String?
+  details    String?
+  createdAt  DateTime     @default(now())
+
+  @@index([adminId, createdAt])
+  @@map("audit_logs")
+}
+
+// ===== Notifications =====
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
