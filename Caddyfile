@@ -1,12 +1,15 @@
-# Artisthive production reverse proxy (Caddy). Replace domains before deploying.
-artisthive.yourdomain.com {
+# Artisthive reverse proxy.
+# Set WEB_DOMAIN, ADMIN_DOMAIN, API_DOMAIN in your environment before `docker compose up`.
+# Caddy auto-provisions HTTPS via Let's Encrypt for real domains.
+
+{$WEB_DOMAIN:http://localhost:5173} {
     reverse_proxy web:80
 }
 
-admin.artisthive.yourdomain.com {
+{$ADMIN_DOMAIN:http://localhost:5174} {
     reverse_proxy admin:80
 }
 
-api.artisthive.yourdomain.com {
+{$API_DOMAIN:http://localhost:4000} {
     reverse_proxy backend:4000
 }

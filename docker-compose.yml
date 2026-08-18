@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: artisthive
-      POSTGRES_PASSWORD: artisthive
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-artisthive}
       POSTGRES_DB: artisthive
     ports:
       - "5432:5432"
@@ -25,12 +25,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      POSTGRESQL_CONNECTION_URI: postgresql://artisthive:artisthive@postgres:5432/supertokens
-      # API_KEYS: <add a long random secret here>
+      POSTGRESQL_CONNECTION_URI: postgresql://artisthive:${POSTGRES_PASSWORD:-artisthive}@postgres:5432/supertokens
+      API_KEYS: ${SUPERTOKENS_API_KEY:-}
     ports:
       - "3567:3567"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/3567 && echo -e 'GET /hello HTTP/1.1\r\nhost: 127.0.0.1:3567\r\nConnection: close\r\n\r\n' >&3 && grep -q Hello <&3"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,17 +44,32 @@ services:
         condition: service_healthy
       supertokens:
         condition: service_healthy
-    env_file: .env
     environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://artisthive:${POSTGRES_PASSWORD:-artisthive}@postgres:5432/artisthive?schema=public
       SUPERTOKENS_CONNECTION_URI: http://supertokens:3567
-      DATABASE_URL: postgresql://artisthive:artisthive@postgres:5432/artisthive?schema=public
+      SUPERTOKENS_API_KEY: ${SUPERTOKENS_API_KEY:-}
+      SUPERTOKENS_WEBSITE_DOMAIN: ${WEB_DOMAIN:-http://localhost:5173}
+      SUPERTOKENS_API_DOMAIN: ${API_DOMAIN:-http://localhost:4000}
+      SUPERTOKENS_ADMIN_DOMAIN: ${ADMIN_DOMAIN:-http://localhost:5174}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      OTP_EMAIL_FROM: ${OTP_EMAIL_FROM:-Artisthive <no-reply@yourdomain.com>}
+      EMAIL_API_PROVIDER: ${EMAIL_API_PROVIDER:-resend}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      MEDIA_DIR: /app/media
+      PUBLIC_MEDIA_BASE_URL: ${API_DOMAIN:-http://localhost:4000}/media
     ports:
       - "4000:4000"
     volumes:
       - media:/app/media
 
   web:
-    build: ./web
+    build:
+      context: ./web
+      args:
+        VITE_API_BASE_URL: ${API_DOMAIN:-http://localhost:4000}
     container_name: artisthive-web
     restart: unless-stopped
     ports:
@@ -63,7 +78,10 @@ services:
       - backend
 
   admin:
-    build: ./admin
+    build:
+      context: ./admin
+      args:
+        VITE_API_BASE_URL: ${API_DOMAIN:-http://localhost:4000}
     container_name: artisthive-admin
     restart: unless-stopped
     ports:
